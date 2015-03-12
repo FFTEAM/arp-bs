@@ -1,8 +1,10 @@
 #!/bin/bash
+#set -x
 
 # originally created by schischu and konfetti
 # fedora parts prepared by lareq
 # fedora/suse/ubuntu scripts merged by kire pudsje (kpc)
+
 if [[ $EUID -ne 0 ]]; then
 	echo "This script must be run as root (sudo $0)" 1>&2
 	exit 1
@@ -13,6 +15,7 @@ UBUNTU=
 FEDORA=
 SUSE=
 UBUVERSION=`lsb_release -c | cut -d : -f2 | cut -b2-35`
+
 # Try to detect the distribution
 if `which lsb_release > /dev/null 2>&1`; then 
 	case `lsb_release -s -i` in
@@ -20,6 +23,7 @@ if `which lsb_release > /dev/null 2>&1`; then
 		Fedora*) FEDORA=1; INSTALL="yum install -y";;
 		SUSE*)   SUSE=1;   INSTALL="zypper install -y";;
 		Ubuntu*) UBUNTU=1; INSTALL="apt-get -y install";;
+		LinuxM*) UBUNTU=1; INSTALL="apt-get -y install";;
 	esac
 fi
 
@@ -42,7 +46,6 @@ if [ -z "$FEDORA$SUSE$UBUNTU" ]; then
 	echo "Try installing the following packages: "
 	# determine probable distribution, based on package system, 
 	# Suse should be last because the others may also have rpm installed.
-	UBUVERSION=`lsb_release -c | cut -d : -f2 | cut -b2-35`
 	{ `which apt-get > /dev/null 2>&1` && UBUNTU=1; } || \
 	{ `which yum     > /dev/null 2>&1` && FEDORA=1; } || \
 	SUSE=2
@@ -51,15 +54,7 @@ fi
 
 if [ "$SUSE" == 1 ]; then
 	SUSE_VERSION=`cat /etc/SuSE-release | line | awk '{ print $2 }'`
-	if [ "$SUSE_VERSION" == "12.1" ]; then
-		zypper ar "http://download.opensuse.org/repositories/home:/toganm/openSUSE_12.1/" fakeroot
-	fi
-	if [ "$SUSE_VERSION" == "11.3" ]; then
-		zypper ar "http://download.opensuse.org/repositories/home:/toganm/openSUSE_11.3/" fakeroot
-	fi
-	if [ "$SUSE_VERSION" == "11.4" ]; then
-		zypper ar "http://download.opensuse.org/repositories/home:/toganm/openSUSE_11.4/" fakeroot
-	fi
+	zypper ar "http://download.opensuse.org/repositories/openSUSE:/$SUSE_VERSION:/Live/standard/" fakeroot
 	zypper ref
 fi
 
@@ -74,6 +69,7 @@ PACKAGES="\
 	swig \
 	dialog \
 	wget \
+	\
 	${UBUNTU:+rpm}                                               ${FEDORA:+rpm-build} \
 	${UBUNTU:+lsb-release}          ${SUSE:+lsb-release}         ${FEDORA:+redhat-lsb} \
 	${UBUNTU:+git-core}             ${SUSE:+git-core}            ${FEDORA:+git} \
@@ -97,66 +93,27 @@ PACKAGES="\
 	${UBUNTU:+help2man} \
 	${UBUNTU:+libgpgme11-dev} \
 	${UBUNTU:+libcurl4-openssl-dev} \
-	${UBUNTU:+bsdtar} \
-	${UBUNTU:+ruby} \
-	${UBUNTU:+cmake} \
-	${UBUNTU:+qt4-dev-tools} \
+	${UBUNTU:+liblzo2-dev} \
+	${UBUNTU:+libsdl-image1.2} \
+	${UBUNTU:+libsdl-image1.2-dev} \
 	${UBUNTU:+libssl-dev} \
+	${UBUNTU:+bsdtar} \
+	${UBUNTU:+cmake} \
+	${UBUNTU:+ruby} \
+	${UBUNTU:+qt4-dev-tools} \
 ";
-if [ "$UBUVERSION" == "quantal" ];then
-	# we lock now the rpm-packages, so ubu not updating them!
-	echo "Package: rpm" >> /etc/apt/preferences
-	echo "Pin: version 4.9.1.1*" >> /etc/apt/preferences
-	echo "Pin-Priority: 1001" >> /etc/apt/preferences
-	echo "" >> /etc/apt/preferences
-	echo "Package: rpm-common" >> /etc/apt/preferences
-	echo "Pin: version 4.9.1.1*" >> /etc/apt/preferences
-	echo "Pin-Priority: 1001" >> /etc/apt/preferences
-	echo "" >> /etc/apt/preferences
-	echo "Package: rpm2cpio" >> /etc/apt/preferences
-	echo "Pin: version 4.9.1.1*" >> /etc/apt/preferences
-	echo "Pin-Priority: 1001" >> /etc/apt/preferences
-	echo "" >> /etc/apt/preferences
-	echo "Package: librpm2" >> /etc/apt/preferences
-	echo "Pin: version 4.9.1.1*" >> /etc/apt/preferences
-	echo "Pin-Priority: 1001" >> /etc/apt/preferences
-	echo "" >> /etc/apt/preferences
-	echo "Package: librpmbuild2" >> /etc/apt/preferences
-	echo "Pin: version 4.9.1.1*" >> /etc/apt/preferences
-	echo "Pin-Priority: 1001" >> /etc/apt/preferences
-	echo "" >> /etc/apt/preferences
-	echo "Package: librpmsign0" >> /etc/apt/preferences
-	echo "Pin: version 4.9.1.1*" >> /etc/apt/preferences
-	echo "Pin-Priority: 1001" >> /etc/apt/preferences
-fi
 
-if [ `which arch > /dev/null 2>&1 && arch || uname -m` == x86_64 ]; then
+if [ `which arch > /dev/null 2>&1 && arch || uname -m` == "x86_64" ]; then
 	# ST changed to the -m32 option for their gcc compiler build
 	# we might need to install more 32bit versions of some packages
 	PACKAGES="$PACKAGES \
 	${UBUNTU:+gcc-multilib}         ${SUSE:+gcc-32bit}           ${FEDORA:+libstdc++-devel.i686} \
-	${UBUNTU:+libc6-dev-i386}       ${SUSE:+zlib-devel-32bit}    ${FEDORA:+glibc-devel.i686} \
+	${UBUNTU:+binutils-multiarch}   ${SUSE:+zlib-devel-32bit}    ${FEDORA:+glibc-devel.i686} \
 	${UBUNTU:+lib32z1-dev}                                       ${FEDORA:+libgcc.i686} \
 	                                                             ${FEDORA:+ncurses-devel.i686} \
 	";
 fi
 $INSTALL $PACKAGES
-
-#Is this also necessary for other dists?
-if [ "$UBUNTU" == 1 ]; then
-	DEBIAN_VERSION=`cat /etc/debian_version`
-	if [ "$DEBIAN_VERSION" == "wheezy/sid" ]; then
-		if [ `which arch > /dev/null 2>&1 && arch || uname -m` == x86_64 ]; then
-			ln -s /usr/include/x86_64-linux-gnu/bits /usr/include/bits
-			ln -s /usr/include/x86_64-linux-gnu/gnu /usr/include/gnu
-			ln -s /usr/include/x86_64-linux-gnu/sys /usr/include/sys
-		else
-			ln -s /usr/include/i386-linux-gnu/bits /usr/include/bits
-			ln -s /usr/include/i386-linux-gnu/gnu /usr/include/gnu
-			ln -s /usr/include/i386-linux-gnu/sys /usr/include/sys
-		fi
-	fi
-fi
 
 # Link sh to bash instead of dash on Ubuntu (and possibly others)
 /bin/sh --version 2>/dev/null | grep bash -s -q
